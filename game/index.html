@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>SOLMAR — Open World</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1210; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #game { position: fixed; inset: 0; }
+  #game canvas { display: block; touch-action: none; }
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 5; }
+  #minimap { position: absolute; top: 14px; right: 14px; width: 180px; height: 180px; border: 2px solid rgba(255,255,255,.55); border-radius: 6px; background: #20242c; box-shadow: 0 2px 12px rgba(0,0,0,.5); }
+  #stars { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); font-size: 30px; letter-spacing: 4px; color: #ffd94d; text-shadow: 0 2px 6px rgba(0,0,0,.8); }
+  #health-wrap { position: absolute; top: 58px; left: 50%; transform: translateX(-50%); width: 220px; height: 16px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.5); border-radius: 8px; overflow: hidden; }
+  #health-fill { height: 100%; width: 100%; background: #3aa655; }
+  #health-text { position: absolute; top: 58px; left: calc(50% + 118px); color: #fff; font-size: 13px; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,.9); line-height: 16px; }
+  #money { position: absolute; top: 14px; left: 14px; color: #7dff9a; font-size: 26px; font-weight: 800; text-shadow: 0 2px 6px rgba(0,0,0,.9); }
+  #speed { position: absolute; bottom: 54px; right: 16px; color: #fff; font-size: 30px; font-weight: 800; text-shadow: 0 2px 6px rgba(0,0,0,.9); display: none; }
+  #objective { position: absolute; top: 84px; left: 14px; max-width: 420px; color: #fff; font-size: 16px; font-weight: 600; background: rgba(0,0,0,.5); padding: 8px 12px; border-left: 4px solid #f2c94c; border-radius: 4px; }
+  #timer { position: absolute; top: 84px; left: 14px; margin-top: 44px; color: #ffd94d; font-size: 16px; font-weight: 800; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+  #help { position: absolute; bottom: 14px; left: 14px; color: rgba(255,255,255,.85); font-size: 13px; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+  #toast { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 18px; font-weight: 700; background: rgba(0,0,0,.65); padding: 10px 18px; border-radius: 6px; opacity: 0; transition: opacity .3s; white-space: nowrap; }
+  /* ---------- Screens ---------- */
+  .screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; text-align: center; z-index: 10; color: #fff; background: rgba(20, 8, 4, .72); padding: 24px; }
+  .screen h1 { margin: 0 0 6px; font-size: 84px; letter-spacing: 10px; font-weight: 900; color: #ffb347; text-shadow: 0 4px 0 #7a2d12, 0 8px 30px rgba(0,0,0,.7); }
+  .screen h2 { margin: 0 0 14px; font-size: 20px; font-weight: 600; color: #ffe9c9; letter-spacing: 3px; text-transform: uppercase; }
+  .screen p { max-width: 560px; font-size: 16px; line-height: 1.55; color: #f2e8dc; margin: 6px 0; }
+  .screen .controls { font-size: 14px; color: #ffd98a; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 12px 18px; margin: 14px 0; line-height: 1.8; }
+  .screen button { pointer-events: auto; margin-top: 10px; font-size: 20px; font-weight: 800; letter-spacing: 2px; color: #1a1210; background: #ffb347; border: none; border-radius: 8px; padding: 14px 34px; cursor: pointer; box-shadow: 0 4px 0 #7a2d12; }
+  .screen button:hover { background: #ffc46b; }
+  .screen .big { font-size: 64px; font-weight: 900; letter-spacing: 6px; margin: 0 0 8px; }
+  #wasted-screen .big { color: #ff5a4d; text-shadow: 0 4px 0 #5a0d08, 0 8px 30px rgba(0,0,0,.7); }
+  #busted-screen .big { color: #6db3ff; text-shadow: 0 4px 0 #0d2a5a, 0 8px 30px rgba(0,0,0,.7); }
+  #complete-screen .big { color: #7dff9a; text-shadow: 0 4px 0 #0d5a24, 0 8px 30px rgba(0,0,0,.7); }
+  #best-money, #final-money, #complete-money { font-size: 20px; font-weight: 800; color: #7dff9a; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="game" aria-label="SOLMAR: an open-world crime game in a sun-soaked coastal city"></div>
+
+<div id="hud">
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div id="stars">☆☆☆☆☆</div>
+  <div id="health-wrap"><div id="health-fill"></div></div>
+  <div id="health-text">100 HP</div>
+  <div id="money">$0</div>
+  <div id="speed">0 km/h</div>
+  <div id="objective"></div>
+  <div id="timer"></div>
+  <div id="help"></div>
+  <div id="toast"></div>
+</div>
+
+<div class="screen" id="start-screen">
+  <h1>SOLMAR</h1>
+  <h2>A sun-soaked open world &middot; steal &middot; drive &middot; survive</h2>
+  <p>You are Leo Marín, fresh out of the Solmar docks with empty pockets and a
+  reputation to build. Rico needs a driver, the pier needs a courier, and five
+  stashes of cash are waiting for someone bold enough to take them. The Solmar
+  police notice everything — stay sharp, stay fast, stay free.</p>
+  <div class="controls">
+    WASD move &middot; Shift run &middot; Drag mouse: camera<br>
+    E steal / exit car &middot; F punch &middot; W/S drive &middot; A/D steer &middot; Space handbrake<br>
+    Esc pause &middot; M mute &middot; Missions: follow the yellow marker
+  </div>
+  <p id="best-money">Best take: $0</p>
+  <button id="start-button">START ENGINE</button>
+  <p style="font-size:13px; color:#cbb9a8;">Best on keyboard + mouse &middot; headphones recommended</p>
+</div>
+
+<div class="screen" id="pause-screen">
+  <div class="big">PAUSED</div>
+  <p>Solmar waits for no one — except right now.</p>
+  <button id="resume-button">RESUME</button>
+</div>
+
+<div class="screen" id="wasted-screen">
+  <div class="big">WASTED</div>
+  <p>Leo went down in the streets of Solmar.</p>
+  <p id="final-money">Take: $0</p>
+  <button id="restart-button">TRY AGAIN</button>
+</div>
+
+<div class="screen" id="busted-screen">
+  <div class="big">BUSTED</div>
+  <p>The Solmar PD caught up with you. Fine paid, heat cleared — you wake up at the hideout.</p>
+  <button id="busted-button">BACK TO THE STREETS</button>
+</div>
+
+<div class="screen" id="complete-screen">
+  <div class="big">STORY COMPLETE</div>
+  <p>Hot Wheels. Package Run. The Big Score. Leo Marín owns Solmar now — and the city is still yours to roam.</p>
+  <p id="complete-money">Final take: $0</p>
+  <button id="complete-button">KEEP ROAMING</button>
+</div>
+
+<p id="status" role="status" aria-live="polite"></p>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
